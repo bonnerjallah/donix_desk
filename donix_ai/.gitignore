@@ -1,0 +1,4 @@
+# PlatformIO
+.pio/
+
+include/secrets.h
