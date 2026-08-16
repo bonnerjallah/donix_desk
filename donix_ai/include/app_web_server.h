@@ -1,5 +1,7 @@
 #pragma once
 
 void setupWebSocket();
-void webSocketSendBIN(uint8_t* payload, size_t length);
 void loopWebSocket();
+
+void sendAudioBIN(uint8_t* data, size_t length);
+void sendWebSocketText(const char* message);

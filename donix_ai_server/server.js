@@ -4,7 +4,10 @@ import express from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env')});
+dotenv.config({path: path.resolve(process.cwd(), '.env')});
+
+import {sendToOpenAI} from './api/open_ai.js';
+
 
 const app = express();
 
@@ -12,21 +15,17 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3001;
 
-// =========================
-// Express Routes
-// =========================
 
-app.get('/', (req, res) => {
-    res.send('DONIX AI Server is running!');
-});
 
 // =========================
 // WebSocket Server
 // =========================
 
 const wss = new WebSocketServer({
-  server, path: '/ws'
+  server,
+  path: '/ws'
 });
+
 
 wss.on('connection', (socket) => {
 
@@ -37,25 +36,40 @@ wss.on('connection', (socket) => {
     message: 'Hello from DONIX server!'
   }));
 
+
+  let audioChunks = [];
+
   socket.on('message', (data, isBinary) => {
-    
-    if(!isBinary){
+
+    console.log(
+      'WS MESSAGE RECEIVED',
+      'isBinary:', isBinary,
+      'length:', data.length
+    );
+
+    if (!isBinary) {
+
+      const message = data.toString();
+
+      console.log('TEXT:', message);
+
+      if (message === 'RECORDING_COMPLETE') {
+
+        const pcmData = Buffer.concat(audioChunks);
+        
+        console.log('RECORDING COMPLETE, PCM DATA LENGTH:', pcmData.length);
+
+        audioChunks = [];
+
+        sendToOpenAI(pcmData)
+      }
+
       return;
     }
 
-    console.log('Received binary data from ESP32:', data);
-    console.log('Received binary data length:', data.length);
+    console.log('BINARY AUDIO:', data.length);
 
-    const sample = [];
-
-    for(let i = 0; i < data.length; i += 4) {
-      const value = data.readInt16LE(i);
-      sample.push(value);
-    }
-
-    console.log('Parsed sample data:', sample);
-    console.log("First 10 values of sample data:", sample.slice(0, 10));
-
+    audioChunks.push(Buffer.from(data));
   });
 
   socket.on('close', () => {
@@ -72,6 +86,6 @@ wss.on('connection', (socket) => {
 // Start Server
 // =========================
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`DONIX AI Server is running on port ${PORT}`);
 });

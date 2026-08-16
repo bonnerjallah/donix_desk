@@ -74,22 +74,42 @@ void loop() {
         Serial.println("Long Press Detected");
 
         int32_t micBuffer[1024];
-        size_t size = sizeof(micBuffer) / sizeof(micBuffer[0]);
+        int16_t pcmBuffer[1024];
 
-        if (mic_read(micBuffer, &size) == 0){
+        size_t size = 1024;
 
-            Serial.printf(
-                "Sending %d samples (%d bytes) to Node.js\n",
-                (int)size,
-                (int)(size * sizeof(int32_t))
-            );
+        Serial.println("Calling mic_read()...");
 
-            webSocketSendBIN(
-                (uint8_t*)micBuffer,
-                size * sizeof(int32_t)
-            );
-       }
+        int result = mic_read(micBuffer, &size);
 
+
+        Serial.print("mic_read result: ");
+        Serial.println(result);
+
+        Serial.print("Samples read: ");
+        Serial.println(size);
+
+        if (result == 0) {
+
+            for (int i = 0; i < size; i++) {
+
+    pcmBuffer[i] = (int16_t)(micBuffer[i] >> 8);
+
+    Serial.println(pcmBuffer[i]);
+}
+
+            size_t bytesToSend = size * sizeof(int16_t);
+
+            Serial.print("Sending ");
+            Serial.print(bytesToSend);
+            Serial.println(" bytes...");
+
+            sendAudioBIN((uint8_t*)pcmBuffer, bytesToSend);
+
+            Serial.println("sendBIN called");
+
+            sendWebSocketText("RECORDING_COMPLETE");
+        }
     }
     
 

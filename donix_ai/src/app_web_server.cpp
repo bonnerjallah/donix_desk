@@ -6,9 +6,32 @@
 
 WebSocketsClient webSocket;
 
-// Function declaration
-void webSocketSendBIN(uint8_t* payload, size_t length);
 
+// =========================
+// WebSocket Send Binary Data
+// =========================
+
+void sendAudioBIN(uint8_t* data, size_t length) {
+    
+    Serial.print("WebSocket connected state:");
+    Serial.println(webSocket.isConnected() ? "YES" : "NO");
+
+    Serial.print("Sending binary: ");
+    Serial.print(length);
+    Serial.println(" bytes");
+
+    webSocket.sendBIN(data, length);
+
+    Serial.println("sendBIN() called");
+};
+
+//=========================
+// WebSocket Send Text Message
+//=========================
+
+void sendWebSocketText(const char* message) {
+    webSocket.sendTXT(message);
+}
 
 // =========================
 // WebSocket Event Handler
@@ -29,11 +52,8 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
 
             Serial.println("WebSocket connected");
 
-            webSocketSendBIN(
-                (uint8_t*)"Hello from ESP32",
-                strlen("Hello from ESP32")
-            );
-
+            webSocket.sendTXT("HELLO");
+            
             break;
 
 
@@ -77,16 +97,6 @@ void setupWebSocket() {
     webSocket.setReconnectInterval(5000);
 
     Serial.println("WebSocket client started");
-}
-
-
-// =========================
-// Send Binary Data
-// =========================
-
-void webSocketSendBIN(uint8_t* payload, size_t length) {
-
-    webSocket.sendBIN(payload, length);
 }
 
 

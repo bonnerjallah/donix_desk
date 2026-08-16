@@ -64,8 +64,7 @@ void setupWiFi() {
         return;
     }
 
-    Serial.println("\nConnected to WiFi");
-
+    Serial.printf("\nConnected to WiFi: %s\n", bestSSID);
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
 }
