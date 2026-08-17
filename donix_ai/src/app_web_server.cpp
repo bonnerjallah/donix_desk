@@ -12,18 +12,16 @@ WebSocketsClient webSocket;
 // =========================
 
 void sendAudioBIN(uint8_t* data, size_t length) {
-    
-    Serial.print("WebSocket connected state:");
-    Serial.println(webSocket.isConnected() ? "YES" : "NO");
 
-    Serial.print("Sending binary: ");
-    Serial.print(length);
-    Serial.println(" bytes");
+    Serial.print("WebSocket connected state: ");
+    Serial.println(webSocket.isConnected() ? "YES" : "NO");
 
     webSocket.sendBIN(data, length);
 
-    Serial.println("sendBIN() called");
-};
+    Serial.print("Sent binary: ");
+    Serial.print(length);
+    Serial.println(" bytes");
+}
 
 //=========================
 // WebSocket Send Text Message

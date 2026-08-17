@@ -1,12 +1,11 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env' });
 import { File } from 'node:buffer';
+import fs from 'fs';
+
 
 dotenv.config({ path: '.env' });
 
-
-
-import fs from 'fs';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -68,6 +67,7 @@ const createWavFile = ( pcmData, sampleRate, channels, bitsPerSample) => {
 
 
 export const sendToOpenAI = async (pcmData) => {
+
   try {
 
     const wavData = createWavFile(
@@ -77,8 +77,11 @@ export const sendToOpenAI = async (pcmData) => {
       16
     );
 
+    fs.writeFileSync('./recording.wav', wavData);
+
+    console.log('WAV saved:', wavData.length, 'bytes');
+
     console.log("PCM length:", pcmData.length);
-    console.log("WAV length:", wavData.length);
     console.log("WAV signature:", wavData.subarray(0, 12).toString());
 
     const form = new FormData();
