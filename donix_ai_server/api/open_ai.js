@@ -1,32 +1,34 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env' });
+import path from 'path';
 import { File } from 'node:buffer';
-import fs from 'fs';
 
+dotenv.config({
+  path: path.resolve(process.cwd(), '.env')
+});
 
-dotenv.config({ path: '.env' });
-
+import { aiRules } from '../services/ai_rules.js';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+
+// =====================================================
+// Create WAV file in memory
+// =====================================================
 
 const createWavFile = ( pcmData, sampleRate, channels, bitsPerSample) => {
 
   const header = Buffer.alloc(44);
 
-  const byteRate =
-    sampleRate *
-    channels *
-    bitsPerSample / 8;
+  const byteRate = sampleRate * channels * bitsPerSample / 8;
 
-  const blockAlign =
-    channels *
-    bitsPerSample / 8;
+  const blockAlign = channels * bitsPerSample / 8;
+
 
   // RIFF
   header.write('RIFF', 0);
 
   // File size
-  header.writeUInt32LE( 36 + pcmData.length, 4);
+  header.writeUInt32LE(36 + pcmData.length, 4);
 
   // WAVE
   header.write('WAVE', 8);
@@ -36,28 +38,30 @@ const createWavFile = ( pcmData, sampleRate, channels, bitsPerSample) => {
 
   // PCM format
   header.writeUInt32LE(16, 16);
+
   header.writeUInt16LE(1, 20);
 
   // Channels
-  header.writeUInt16LE( channels, 22);
+  header.writeUInt16LE(channels, 22);
 
   // Sample rate
-  header.writeUInt32LE( sampleRate, 24);
+  header.writeUInt32LE(sampleRate, 24);
 
   // Byte rate
-  header.writeUInt32LE( byteRate, 28);
+  header.writeUInt32LE(byteRate, 28);
 
   // Block align
-  header.writeUInt16LE( blockAlign, 32);
+  header.writeUInt16LE(blockAlign, 32);
 
   // Bits per sample
-  header.writeUInt16LE( bitsPerSample, 34);
+  header.writeUInt16LE(bitsPerSample, 34);
 
   // data
   header.write('data', 36);
 
   // PCM data size
-  header.writeUInt32LE( pcmData.length, 40);
+  header.writeUInt32LE(pcmData.length, 40);
+
 
   return Buffer.concat([
     header,
@@ -66,67 +70,86 @@ const createWavFile = ( pcmData, sampleRate, channels, bitsPerSample) => {
 };
 
 
+// =====================================================
+// Send audio to OpenAI
+// =====================================================
+
 export const sendToOpenAI = async (pcmData) => {
 
   try {
 
-    const wavData = createWavFile(
-      pcmData,
-      16000,
-      1,
-      16
-    );
+    // -------------------------------------------------
+    // Create WAV
+    // -------------------------------------------------
 
-    fs.writeFileSync('./recording.wav', wavData);
+    const wavData = createWavFile(pcmData, 16000, 1, 16);
 
-    console.log('WAV saved:', wavData.length, 'bytes');
 
-    console.log("PCM length:", pcmData.length);
-    console.log("WAV signature:", wavData.subarray(0, 12).toString());
+    // -------------------------------------------------
+    // Create multipart form
+    // -------------------------------------------------
 
     const form = new FormData();
 
-    const audioFile = new File(
-      [wavData],
-      'recording.wav',
-      {
-        type: 'audio/wav'
-      }
-    );
+
+    const audioFile = new File( [wavData], 'recording.wav', {
+      type: 'audio/wav'
+    });
+
 
     form.append('file', audioFile);
+
     form.append('model', 'gpt-4o-mini-transcribe');
 
-    const response = await fetch(
-      'https://api.openai.com/v1/audio/transcriptions',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`
-        },
-        body: form
-      }
-    );
+
+    // -------------------------------------------------
+    // Send to OpenAI transcription endpoint
+    // -------------------------------------------------
+
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${OPENAI_API_KEY}`},
+      body: form
+    });
+
+
+    // -------------------------------------------------
+    // Read response
+    // -------------------------------------------------
 
     const responseText = await response.text();
 
+
+    // -------------------------------------------------
+    // Handle API errors
+    // -------------------------------------------------
+
     if (!response.ok) {
-      throw new Error(
-        `OpenAI API error ${response.status}: ${responseText}`
-      );
+      throw new Error( `OpenAI API error ${response.status}: ${responseText}`);
     }
+
+
+    // -------------------------------------------------
+    // Parse response
+    // -------------------------------------------------
 
     const data = JSON.parse(responseText);
 
+
     console.log('TRANSCRIPTION:', data.text);
+
+
+    // -------------------------------------------------
+    // Return transcription
+    // -------------------------------------------------
+
+    return data.text;
+
 
   } catch (error) {
 
-    console.error(
-      'Error sending audio to OpenAI:',
-      error
-    );
+    console.error('Error sending audio to OpenAI:', error);
 
+    return null;
   }
 };
-
