@@ -1,73 +1,12 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { File } from 'node:buffer';
+import { ttsToBinaryAudio } from '../lib/tts_to_BinaryAudio.js';
 
-dotenv.config({
-  path: path.resolve(process.cwd(), '.env')
-});
+dotenv.config({path: path.resolve(process.cwd(), '.env')});
 
-import { aiRules } from '../services/ai_rules.js';
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-
-// =====================================================
-// Create WAV file in memory
-// =====================================================
-
-const createWavFile = ( pcmData, sampleRate, channels, bitsPerSample) => {
-
-  const header = Buffer.alloc(44);
-
-  const byteRate = sampleRate * channels * bitsPerSample / 8;
-
-  const blockAlign = channels * bitsPerSample / 8;
-
-
-  // RIFF
-  header.write('RIFF', 0);
-
-  // File size
-  header.writeUInt32LE(36 + pcmData.length, 4);
-
-  // WAVE
-  header.write('WAVE', 8);
-
-  // fmt
-  header.write('fmt ', 12);
-
-  // PCM format
-  header.writeUInt32LE(16, 16);
-
-  header.writeUInt16LE(1, 20);
-
-  // Channels
-  header.writeUInt16LE(channels, 22);
-
-  // Sample rate
-  header.writeUInt32LE(sampleRate, 24);
-
-  // Byte rate
-  header.writeUInt32LE(byteRate, 28);
-
-  // Block align
-  header.writeUInt16LE(blockAlign, 32);
-
-  // Bits per sample
-  header.writeUInt16LE(bitsPerSample, 34);
-
-  // data
-  header.write('data', 36);
-
-  // PCM data size
-  header.writeUInt32LE(pcmData.length, 40);
-
-
-  return Buffer.concat([
-    header,
-    pcmData
-  ]);
-};
+import {generateAIResponse} from '../services/generate_ai_response.js';
+import { createWavFile } from '../lib/createWavFile.js';
 
 
 // =====================================================
@@ -75,6 +14,8 @@ const createWavFile = ( pcmData, sampleRate, channels, bitsPerSample) => {
 // =====================================================
 
 export const sendToOpenAI = async (pcmData) => {
+
+  let userInput = '';
 
   try {
 
@@ -84,13 +25,7 @@ export const sendToOpenAI = async (pcmData) => {
 
     const wavData = createWavFile(pcmData, 16000, 1, 16);
 
-
-    // -------------------------------------------------
-    // Create multipart form
-    // -------------------------------------------------
-
     const form = new FormData();
-
 
     const audioFile = new File( [wavData], 'recording.wav', {
       type: 'audio/wav'
@@ -101,49 +36,25 @@ export const sendToOpenAI = async (pcmData) => {
 
     form.append('model', 'gpt-4o-mini-transcribe');
 
-
-    // -------------------------------------------------
-    // Send to OpenAI transcription endpoint
-    // -------------------------------------------------
-
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
-      headers: {'Authorization': `Bearer ${OPENAI_API_KEY}`},
+      headers: {'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`},
       body: form
     });
 
-
-    // -------------------------------------------------
-    // Read response
-    // -------------------------------------------------
-
     const responseText = await response.text();
-
-
-    // -------------------------------------------------
-    // Handle API errors
-    // -------------------------------------------------
 
     if (!response.ok) {
       throw new Error( `OpenAI API error ${response.status}: ${responseText}`);
     }
 
-
-    // -------------------------------------------------
-    // Parse response
-    // -------------------------------------------------
-
     const data = JSON.parse(responseText);
 
+    console.log('FULL TRANSCRIPTION RESPONSE:', data);
 
-    console.log('TRANSCRIPTION:', data.text);
+    userInput = data.text || '';
 
-
-    // -------------------------------------------------
-    // Return transcription
-    // -------------------------------------------------
-
-    return data.text;
+    console.log('OpenAI transcription result:', userInput);
 
 
   } catch (error) {
@@ -152,4 +63,66 @@ export const sendToOpenAI = async (pcmData) => {
 
     return null;
   }
+
+  // -------------------------------------------------
+  // Generate AI response
+  // -------------------------------------------------
+
+  if (!userInput.trim()) {
+    console.log('No speech detected. Skipping AI response.');
+    return null;
+  }
+
+  const aiResponse = await generateAIResponse(userInput);
+
+  if (!aiResponse) {
+    console.error('Failed to generate AI response');
+    return null;
+  }
+
+  // -------------------------------------------------
+  // Convert AI response to binary audio
+  // -------------------------------------------------
+
+  const binaryAudio = await ttsToBinaryAudio(aiResponse);
+
+  if (!binaryAudio) {
+    console.error('Failed to convert AI response to binary audio');
+    return null;
+  }
+
+  return { aiResponse, binaryAudio };
+};
+
+export const sendToEsp32 = (socket, binaryAudio) => {
+
+  if (!socket || !binaryAudio) {
+    console.error('Invalid socket or binary audio');
+    return;
+  }
+
+  const CHUNK_SIZE = 2048;
+
+  console.log(
+    'Sending TTS audio:',
+    binaryAudio.length,
+    'bytes'
+  );
+
+  for (let offset = 0; offset < binaryAudio.length; offset += CHUNK_SIZE) {
+
+    const chunk = binaryAudio.subarray(
+      offset,
+      Math.min(
+        offset + CHUNK_SIZE,
+        binaryAudio.length
+      )
+    );
+
+    socket.send(chunk);
+  }
+
+  console.log(
+    'Finished sending TTS audio'
+  );
 };

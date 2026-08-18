@@ -6,7 +6,7 @@ import { WebSocketServer } from 'ws';
 
 dotenv.config({path: path.resolve(process.cwd(), '.env')});
 
-import {sendToOpenAI} from './api/open_ai.js';
+import {sendToOpenAI, sendToEsp32} from './api/open_ai.js';
 
 
 const app = express();
@@ -39,7 +39,7 @@ wss.on('connection', (socket) => {
 
   let audioChunks = [];
 
-  socket.on('message', (data, isBinary) => {
+  socket.on('message', async (data, isBinary) => {
 
     console.log(
       'WS MESSAGE RECEIVED',
@@ -61,7 +61,19 @@ wss.on('connection', (socket) => {
 
         audioChunks = [];
 
-        sendToOpenAI(pcmData)
+        const result = await sendToOpenAI(pcmData);
+        
+        if (!result){
+          console.error('Failed to process audio data');
+          return;
+        }
+
+        console.log('AI RESPONSE:', result.aiResponse);
+
+        sendToEsp32(socket, result.binaryAudio);
+
+        console.log('Sent AI response audio to ESP32');
+
       }
 
       return;
@@ -72,13 +84,26 @@ wss.on('connection', (socket) => {
     audioChunks.push(Buffer.from(data));
   });
 
-  socket.on('close', () => {
-    console.log('ESP32 WebSocket disconnected');
-  });
+  socket.on('close', (code, reason) => {
 
-  socket.on('error', (error) => {
-    console.error('WebSocket error:', error);
-  });
+  console.log(
+    'ESP32 WebSocket disconnected',
+    'code:',
+    code,
+    'reason:',
+    reason.toString()
+  );
+
+});
+
+socket.on('error', (error) => {
+
+  console.error(
+    'WebSocket error:',
+    error
+  );
+
+});
 
 });
 

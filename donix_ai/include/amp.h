@@ -7,8 +7,8 @@
 // Amplifier Pins
 // =========================
 
-const int AMP_BCLK_PIN = 21;
-const int AMP_LRC_PIN  = 23;
+const int AMP_BCLK_PIN = 26;
+const int AMP_LRC_PIN  = 27;
 const int AMP_DIN_PIN  = 19;
 const int AMP_SD_PIN   = 18;
 
@@ -29,7 +29,18 @@ const int AMP_DMA_BUFFER_LENGTH = 1024;
 
 void amp_init();
 
-int amp_play(int16_t* audioData, size_t sampleCount);
+int amp_play(
+    int16_t* audioData,
+    size_t sampleCount
+);
+
+// NEW
+int amp_play_chunk(
+    uint8_t* data,
+    size_t length
+);
+
+int amp_play_chunk(uint8_t* data, size_t length);
 
 void amp_stop();
 

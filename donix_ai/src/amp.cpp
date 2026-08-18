@@ -72,6 +72,55 @@ int amp_play(int16_t* audioData, size_t sampleCount) {
     return bytesWritten / sizeof(int16_t);
 }
 
+int amp_play_chunk(uint8_t* data, size_t length) {
+
+    if (data == nullptr || length == 0) {
+        return 0;
+    }
+
+    // Make sure we have complete 16-bit samples
+    size_t sampleCount = length / sizeof(int16_t);
+
+    int16_t* monoSamples =
+        reinterpret_cast<int16_t*>(data);
+
+    // Maximum expected chunk:
+    // 2048 bytes / 2 = 1024 mono samples
+    // 1024 * 2 = 2048 stereo samples
+    static int16_t stereoBuffer[2048];
+
+    for (size_t i = 0; i < sampleCount; i++) {
+
+        stereoBuffer[i * 2] =
+            monoSamples[i];
+
+        stereoBuffer[i * 2 + 1] =
+            monoSamples[i];
+    }
+
+    size_t bytesWritten = 0;
+
+    esp_err_t result = i2s_write(
+        AMP_I2S_PORT,
+        stereoBuffer,
+        sampleCount * 2 * sizeof(int16_t),
+        &bytesWritten,
+        portMAX_DELAY
+    );
+
+    if (result != ESP_OK) {
+
+        Serial.printf(
+            "I2S write failed: %d\n",
+            result
+        );
+
+        return -1;
+    }
+
+    return bytesWritten;
+}
+
 void amp_stop() {
     i2s_zero_dma_buffer(AMP_I2S_PORT);
     digitalWrite(AMP_SD_PIN, LOW);

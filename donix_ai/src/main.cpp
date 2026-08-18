@@ -74,15 +74,24 @@ void loop() {
 
         if (size > 0) {
 
+            int16_t minPCM = 32767;
+            int16_t maxPCM = -32768;
+
             for (size_t i = 0; i < size; i++) {
 
-                // INMP441:
-                // 24-bit audio stored in the upper
-                // 24 bits of the 32-bit I2S frame.
                 int16_t pcm = (int16_t)(micBuffer[i] >> 16);
 
                 pcmBuffer[i] = pcm;
+
+                if (pcm < minPCM) minPCM = pcm;
+                if (pcm > maxPCM) maxPCM = pcm;
             }
+
+            Serial.printf(
+                "PCM RANGE: min=%d max=%d\n",
+                minPCM,
+                maxPCM
+            );
             sendAudioBIN(
                 (uint8_t*)pcmBuffer,
                 size * sizeof(int16_t)

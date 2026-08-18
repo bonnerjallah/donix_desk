@@ -3,6 +3,7 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 #include "secrets.h"
+#include "amp.h"
 
 WebSocketsClient webSocket;
 
@@ -66,7 +67,15 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
 
         case WStype_BIN:
 
-            Serial.println("Binary data received");
+            Serial.printf(
+                "Received TTS audio: %u bytes\n",
+                length
+            );
+
+            amp_play_chunk(
+                payload,
+                length
+            );
 
             break;
 

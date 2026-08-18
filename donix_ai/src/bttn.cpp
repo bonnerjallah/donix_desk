@@ -62,10 +62,7 @@ ButtonEvent updateButton() {
     // Debounce
     // =========================
 
-    if (
-        (currentTime - Button::lastDebounceTime)
-        >= Button::DEBOUNCE_DELAY
-    ) {
+    if ((currentTime - Button::lastDebounceTime) >= Button::DEBOUNCE_DELAY) {
 
         // =========================
         // Stable state changed
@@ -104,8 +101,7 @@ ButtonEvent updateButton() {
 
             else {
 
-                unsigned long pressDuration =
-                    currentTime - Button::pressStartTime;
+                unsigned long pressDuration = currentTime - Button::pressStartTime;
 
 
                 // If this was a long press,
@@ -162,14 +158,7 @@ ButtonEvent updateButton() {
     //
     // =========================
 
-    if (
-        Button::buttonState == LOW &&
-        !Button::longPressDetected &&
-        !Button::secondClickInProgress &&
-        !Button::waitingForSecondClick &&
-        (currentTime - Button::pressStartTime)
-            >= Button::LONG_PRESS_TIME
-    ) {
+    if (Button::buttonState == LOW && !Button::longPressDetected && !Button::secondClickInProgress && !Button::waitingForSecondClick && (currentTime - Button::pressStartTime) >= Button::LONG_PRESS_TIME) {
 
         Button::longPressDetected = true;
 
@@ -183,13 +172,8 @@ ButtonEvent updateButton() {
     // Single click timeout
     // =========================
 
-    if (
-        Button::waitingForSecondClick &&
-        !Button::secondClickInProgress &&
-        (currentTime - Button::lastClickTime)
-            > Button::DOUBLE_CLICK_TIME
-    ) {
-
+    if (Button::waitingForSecondClick && !Button::secondClickInProgress && (currentTime - Button::lastClickTime) > Button::DOUBLE_CLICK_TIME) {
+        
         Button::waitingForSecondClick = false;
 
         return SINGLE_CLICK;
